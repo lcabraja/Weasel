@@ -12,7 +12,9 @@ var FORMAT_BY_MAGIC_NUMBERS = {
 	'213C6172':'deb', '000001BA':'mpg', '000001B3':'mpg', '1B4C7561':'luac'
 };
 var WS;
-var root, terminal, url, protocol, message, memory;
+var keepAlive = false;
+var timeout = 30;
+var root, terminal, url, protocol, message, memory, reconnect;
 var _ArrayBuffers = [], _Blobs = [], _JSONs = [], _Memory = {}, _Memory_order = [];
 var last_used_memory_slot_color, last_remembered_slot;
 var TIME_MACHINE_CAPACITY = 75, time_machine = [], time_machine_index = 0;
@@ -61,7 +63,12 @@ function onOpen(ev){
 	writeToScreen('CONNECTION READY', 'opening');
 }
 function onClose(ev){
-	writeToScreen('CONNECTION CLOSED!', 'closing');
+	if (!keepAlive) {
+		writeToScreen('CONNECTION CLOSED!', 'closing');
+		return;
+	}
+	writeToScreen('CONNECTION CLOSED! REOPENING!', 'closing');	
+	setTimeout(() => {createSocket()}, timeout);
 }
 function onMessage(ev){
 	var msg, bin_group, bin_position;
@@ -85,6 +92,10 @@ function onError(ev){
 	console.log(ev);
 	var error_ = (ev && ev.data) ? ev.data : "The Connection is Abruptly Closed or Couldn't be Opened !";
 	writeToScreen(error_, 'error');
+}
+function toggleKeepAlive() {
+	keepAlive = !keepAlive;
+	reconnect.className = "activebutton"
 }
 function doSend(){
 	if ( message.value.length > 0 ){
@@ -352,6 +363,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	message = document.getElementById('message');
 	url = document.getElementById('url');
 	protocol = document.getElementById('protocol');
+	reconnect = document.querySelector('input[type="button"][value="RECONNECT"]')
 	memory = document.getElementById('memory');
 	auto_scroll_marker = document.querySelector('#switch-auto-scroll span');
 	file_selector_display = document.querySelector('#file-selector span#file-name');
@@ -363,6 +375,7 @@ document.addEventListener("DOMContentLoaded", function() {
 		root.setAttribute('data-theme', theme_);
 		localStorage._weasel_theme = theme_;
 	});
+	reconnect.addEventListener('click', toggleKeepAlive)
 	document.getElementById('store-memory').addEventListener('click', storeMemorySlots);
 	document.getElementById('clear-storage').addEventListener('click', clearStorage);
 	document.getElementById('switch-auto-scroll').addEventListener('click', switchAutoScroll);
