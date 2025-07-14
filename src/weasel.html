@@ -26,22 +26,23 @@
 		<fieldset>
 			<legend>Message Console</legend>
 			<textarea type="text" id="message"></textarea>
-			<input type="button" value="SEND" title="Send Message (Ctrl + Enter)">
-			<input type="button" value="R" title="Reset Input">
-			<input type="button" value="C" title="Clear Terminal">
-			<input type="button" value="<" title="History Backward (Ctrl + Alt + Z)">
-			<input type="button" value=">" title="History Forward (Ctrl + Alt + X)">
-			<input type="button" value="M+" title="Memorize (Ctrl + M)">
-			<ol id="memory"></ol>
-			<fieldset>
-				<legend>Binary</legend>
+			<div class="button-group">
+				<input type="button" value="SEND" title="Send Message (Ctrl + Enter)">
+				<input type="button" value="R" title="Reset Input">
+				<input type="button" value="C" title="Clear Terminal">
+				<input type="button" value="<" title="History Backward (Ctrl + Alt + Z)">
+				<input type="button" value=">" title="History Forward (Ctrl + Alt + X)">
+				<input type="button" value="M+" title="Memorize (Ctrl + M)">
 				<div id="file-selector">
-					<label id="file-selector-botton" for="file-input"><span>Browse</span><span id="file-name">No File Selected.</span></label>
+					<label id="file-selector-botton" for="file-input">
+						<span>Browse</span>
+						<span id="file-name">No File Selected.</span>
+					</label>
 					<input id="file-input" type="file">
 				</div>
 				<input type="button" value="blob">
 				<input type="button" value="array">
-			</fieldset>
+			</div>
 		</fieldset>
 	</form>
 	<div id="side-menu">
