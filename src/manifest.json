@@ -3,7 +3,7 @@
 	"name": "WebSocket Weasel",
 	"version": "2.1.1",
 	"description": "A Handy Console to Communicate with WebSocket Servers",
-	"homepage_url": "https://github.com/mhgolkar/Weasel",
+	"homepage_url": "https://github.com/lcabraja/Weasel",
 	"icons": {
 		"120": "icon.svg",
 		"48": "icon-48.png",
