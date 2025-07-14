@@ -12,64 +12,161 @@ var FORMAT_BY_MAGIC_NUMBERS = {
 	'213C6172':'deb', '000001BA':'mpg', '000001B3':'mpg', '1B4C7561':'luac'
 };
 var WS;
+var timeout = 500;
+var isConnecting = false;
+var hasConnected = false;
 var keepAlive = false;
-var timeout = 30;
-var root, terminal, url, protocol, message, memory, reconnect;
+var reconnectAttempts = 0;
+var disconnectTime = null;
+var reconnectMessageElement = null;
+var root, terminal, url, protocol, message, memory;
 var _ArrayBuffers = [], _Blobs = [], _JSONs = [], _Memory = {}, _Memory_order = [];
 var last_used_memory_slot_color, last_remembered_slot;
 var TIME_MACHINE_CAPACITY = 75, time_machine = [], time_machine_index = 0;
 var auto_scroll = true, auto_scroll_marker;
 var file_selector_display;
+
+function isWsConnected() {
+	return WS && WS.readyState === 1;
+}
+
 function createSocket() {
-	if (WS && 'readyState' in WS && WS.readyState === 1 ){
-		WS.onclose = function(ev) { onClose(ev); createSocket(); };
-		writeToScreen('Overriding Existing Connection...', 'error');
+	if (isConnecting) return;
+	isConnecting = true;
+
+	keepAlive = true;
+	
+	if (WS && 'readyState' in WS && WS.readyState === 1) {
+		console.debug("closing socket right now");
+		WS.onclose = onClose;
+		writeToScreen('Closing Connection...', 'closing');
 		WS.close();
-	} else {
-		var supports = 'WebSocket' in window || 'MozWebSocket' in window;
-		var protocols;
-		if ( supports ){
-			if ( url.value.length > 0 ) {
-				try {
-					if( protocol.value.length > 0 ) {
-						protocols = protocol.value.trim().replace(/\s/g, '');
-						protocols =	( protocols.indexOf(',') > 0 ? protocols.split(',') : protocols);
-						WS = window['MozWebSocket'] ? new MozWebSocket(url.value, protocols) : new WebSocket(url.value, protocols);
-					} else {
-						WS = window['MozWebSocket'] ? new MozWebSocket(url.value) : new WebSocket(url.value);
-					}
-					WS.onopen = function(ev) { onOpen(ev); };
-					WS.onclose = function(ev) { onClose(ev); };
-					WS.onmessage = function(ev) { onMessage(ev); };
-					WS.onerror = function(ev) { onError(ev); };
-					protocols = protocols ? ( typeof protocols === 'string' ? protocols : protocols.join(' , ') ) : '';
-						if ( protocols.length > 0 ) protocols = `[ ${protocols} ]`;
-					writeToScreen(`CONNECTING:   ${ url.value.toUpperCase() } ${protocols}`, 'url');
-				} catch(err){
-					writeToScreen('Unable to Create Socket! ' + err.message, 'error');
-				}
-			} else {
-				writeToScreen('We Need a URL to Connect!', 'error');
-			}
-			// also save the last configs to the storage
-			localStorage._weasel_last_used_protocol = protocol.value;
-			localStorage._weasel_last_used_url = url.value;
-		} else {
-			writeToScreen("This Browser Doesn't Support WebSocket!", 'error');
-		}
-	}
-}
-function onOpen(ev){
-	writeToScreen('CONNECTION READY', 'opening');
-}
-function onClose(ev){
-	if (!keepAlive) {
-		writeToScreen('CONNECTION CLOSED!', 'closing');
+		isConnecting = false;
 		return;
 	}
-	writeToScreen('CONNECTION CLOSED! REOPENING!', 'closing');	
-	setTimeout(() => {createSocket()}, timeout);
+
+	setTimeout(function() {
+		if (WS && WS.readyState !== 1) {
+			if (WS.readyState === 0 || WS.readyState === 2) {
+				WS.close();
+			}
+			isConnecting = false;
+			updateConnectionButton();
+		}
+	}, timeout);
+
+	var supports = 'WebSocket' in window || 'MozWebSocket' in window;
+	var protocols;
+	if (supports) {
+		if (url.value.length > 0) {
+			try {
+				if (protocol.value.length > 0) {
+					protocols = protocol.value.trim().replace(/\s/g, '');
+					protocols = (protocols.indexOf(',') > 0 ? protocols.split(',') : protocols);
+					WS = window['MozWebSocket'] ? new MozWebSocket(url.value, protocols) : new WebSocket(url.value, protocols);
+				} else {
+					WS = window['MozWebSocket'] ? new MozWebSocket(url.value) : new WebSocket(url.value);
+				}
+				WS.onopen = function(ev) { onOpen(ev); };
+				WS.onclose = function(ev) { onClose(ev); };
+				WS.onmessage = function(ev) { onMessage(ev); };
+				WS.onerror = function(ev) { onError(ev); };
+				protocols = protocols ? (typeof protocols === 'string' ? protocols : protocols.join(' , ')) : '';
+				if (protocols.length > 0) protocols = `[ ${protocols} ]`;
+				if (!keepAlive) {
+					writeToScreen(`CONNECTING:   ${url.value.toUpperCase()} ${protocols}`, 'url');
+				}
+			} catch(err) {
+				writeToScreen('Unable to Create Socket! ' + err.message, 'error');
+				isConnecting = false;
+				updateConnectionButton();
+			}
+		} else {
+			writeToScreen('We Need a URL to Connect!', 'error');
+			isConnecting = false;
+			updateConnectionButton();
+		}
+		// also save the last configs to the storage
+		localStorage._weasel_last_used_protocol = protocol.value;
+		localStorage._weasel_last_used_url = url.value;
+	} else {
+		writeToScreen("This Browser Doesn't Support WebSocket!", 'error');
+		isConnecting = false;
+		updateConnectionButton();
+	}
 }
+
+function closeSocket() {
+	keepAlive = false;
+	hasConnected = false;
+	if (WS) {
+		WS.close();
+	}
+}
+
+function formatTimeSinceDisconnect() {
+	if (!disconnectTime) return '0s';
+	const diff = Math.floor((Date.now() - disconnectTime) / 1000);
+	if (diff < 60) return `${diff}s`;
+	const minutes = Math.floor(diff / 60);
+	const seconds = diff % 60;
+	return `${minutes}m ${seconds}s`;
+}
+
+function updateReconnectMessage() {
+	if (!reconnectMessageElement) {
+		reconnectMessageElement = document.createElement('p');
+		reconnectMessageElement.className = 'closing';
+		terminal.appendChild(reconnectMessageElement);
+	}
+	reconnectMessageElement.innerText = `Attempting to ${hasConnected ? 'reconnect' : 'connect'} ${formatTimeSinceDisconnect()}...`;
+	if(auto_scroll) terminal.scrollTop = terminal.scrollHeight;
+}
+
+function onOpen(ev) {
+	writeToScreen('CONNECTION READY', 'opening');
+	isConnecting = false;
+	hasConnected = true;
+	updateConnectionButton();
+	reconnectAttempts = 0;
+	disconnectTime = null;
+	reconnectMessageElement = null;
+}
+
+function onClose(ev) {
+	isConnecting = false;
+	updateConnectionButton();
+	
+	if (!keepAlive) {
+		writeToScreen('CONNECTION CLOSED!', 'closing');
+		reconnectAttempts = 0;
+		disconnectTime = null;
+		reconnectMessageElement = null;
+		return;
+	}
+	
+	if (disconnectTime === null) {
+		disconnectTime = Date.now();
+	}
+	reconnectAttempts++;
+	updateReconnectMessage();
+	
+	setTimeout(() => {
+		if (keepAlive) {
+			createSocket();
+			updateReconnectMessage(); // Update message immediately when attempting reconnect
+		}
+	}, timeout);
+}
+
+function updateConnectionButton() {
+	var toggleBtn = document.getElementById('toggle-connection');
+	if (!toggleBtn) return;
+	
+	toggleBtn.value = keepAlive ? 'SEVER' : 'CONNECT';
+	toggleBtn.className = keepAlive ? (isWsConnected() ? 'activebutton success' : 'activebutton error') : '';
+}
+
 function onMessage(ev){
 	var msg, bin_group, bin_position;
 	if ( ev.data instanceof ArrayBuffer ){
@@ -89,13 +186,10 @@ function onMessage(ev){
 	if (bin_position !== undefined) makeBinaryLink(bin_group, bin_position);
 }
 function onError(ev){
-	console.log(ev);
+	// console.log(ev);
+	if (keepAlive) return;
 	var error_ = (ev && ev.data) ? ev.data : "The Connection is Abruptly Closed or Couldn't be Opened !";
 	writeToScreen(error_, 'error');
-}
-function toggleKeepAlive() {
-	keepAlive = !keepAlive;
-	reconnect.className = "activebutton"
 }
 function doSend(){
 	if ( message.value.length > 0 ){
@@ -357,17 +451,32 @@ function insert_text_message(string){
 		start + string.length;
 	}
 }
-document.addEventListener("DOMContentLoaded", function() {
-	root = document.getRootNode().documentElement;
+window.onload = function() {
+	root = document.querySelector('html');
 	terminal = document.getElementById('terminal');
-	message = document.getElementById('message');
 	url = document.getElementById('url');
 	protocol = document.getElementById('protocol');
-	reconnect = document.querySelector('input[type="button"][value="RECONNECT"]')
+	message = document.getElementById('message');
 	memory = document.getElementById('memory');
 	auto_scroll_marker = document.querySelector('#switch-auto-scroll span');
-	file_selector_display = document.querySelector('#file-selector span#file-name');
-	message.value = ''; // clear text area
+	file_selector_display = document.getElementById('file-name');
+
+	// Load last used configs
+	if (localStorage._weasel_last_used_protocol) protocol.value = localStorage._weasel_last_used_protocol;
+	if (localStorage._weasel_last_used_url) url.value = localStorage._weasel_last_used_url;
+	
+	// Setup form submission for connection toggle
+	document.getElementById('ws-construction').onsubmit = function(e) {
+		e.preventDefault();
+
+		if (isWsConnected()) {
+			closeSocket();
+		} else {
+			createSocket();
+		}
+		return false;
+	};
+
 	document.getElementById('dark-switcher').addEventListener('click', function(ev){
 		ev.preventDefault();
 		var is_dark = ( root.getAttribute('data-theme').indexOf('dark') === 0 ) ? true : false;
@@ -375,13 +484,10 @@ document.addEventListener("DOMContentLoaded", function() {
 		root.setAttribute('data-theme', theme_);
 		localStorage._weasel_theme = theme_;
 	});
-	reconnect.addEventListener('click', toggleKeepAlive)
 	document.getElementById('store-memory').addEventListener('click', storeMemorySlots);
 	document.getElementById('clear-storage').addEventListener('click', clearStorage);
 	document.getElementById('switch-auto-scroll').addEventListener('click', switchAutoScroll);
 	document.querySelector('#ws-construction').addEventListener('submit', function(ev){ ev.preventDefault(); message.focus(); });
-	document.querySelector('input[type="submit"][value="OPEN"]').addEventListener('click', createSocket);
-	document.querySelector('input[type="button"][value="CLOSE"]').addEventListener('click', function(){ if (WS) WS.close(); });
 	document.querySelector('input[type="button"][value="SEND"]').addEventListener('click', doSend);
 	document.querySelector('input[type="button"][value="R"]').addEventListener('click', function(){ message.value = ''; });
 	document.querySelector('input[type="button"][value="C"]').addEventListener('click', function(){ terminal.innerText = ''; });
@@ -480,4 +586,4 @@ document.addEventListener("DOMContentLoaded", function() {
 				break;
 		}
 	}
-});
+};

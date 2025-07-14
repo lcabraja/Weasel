@@ -8,6 +8,8 @@
 	--color-5: rgb(128, 0, 0);
 	--color-6: rgb(90, 90, 90);
 	--color-7: rgb(170, 170, 170);
+	--color-success: rgb(7, 153, 153);
+	--color-error: rgb(116, 1, 122);
 }
 :root[data-theme^='dark'] { /* dark theme */
 	--color-0: rgb(0, 0, 0);
@@ -17,7 +19,9 @@
 	--color-4: rgb(49, 49, 49);
 	--color-5: rgb(18, 226, 176);
 	--color-6: rgb(181, 181, 181);
-	--color-7: rgb(142, 117, 64);
+	--color-7: rgb(142, 117, 64);	
+	--color-success: rgb(19, 226, 176);
+	--color-error: rgb(255, 46, 45);
 }
 /* terminal color scheme */
 :root[data-theme^='dark'] {
@@ -111,8 +115,18 @@ form, fieldset, div {
 }
 .activebutton {
 	color: var(--color-0);
+	width: 7ch;
 	background-color: var(--color-5);
 }
+
+.activebutton.success {
+	border-color: var(--color-success);
+}
+
+.activebutton.error {
+	border-color: var(--color-error);
+}
+
 .activebutton:hover {
 	color: var(--color-3);
 }
@@ -140,7 +154,7 @@ input[type='text']{
 	letter-spacing: 0.125rem;
 	vertical-align: middle;
 	border-radius: 0.25rem;
-	text-align: center;
+	text-align: right;
 }
 input[type='text'], input[type='text']::placeholder {
 	height: 2rem;
@@ -220,6 +234,28 @@ legend {
 }
 #ws-construction fieldset {
 	padding-left: 1rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: nowrap;
+}
+
+#ws-construction fieldset label {
+	white-space: nowrap;
+}
+
+#ws-construction #url {
+	flex: 1;
+	min-width: 100px; /* prevent from becoming too small */
+}
+
+#ws-construction #protocol {
+	width: 150px; /* fixed width for protocol input */
+}
+
+/* Override placeholder alignment to match input text */
+input[type='text']::placeholder {
+	text-align: right;
 }
 #terminal {
 	overflow-x: hidden;

@@ -9,9 +9,6 @@
 	<script language="javascript" type="text/javascript" src="./weasel.js"></script>
 </head>
 <body>
-	<h1>Weasel</h1>
-	<h2>The WebSocket Client <span>v2.1.1</span></h2>
-	<!-- Server to Connect -->
 	<form id="ws-construction">
 		<fieldset>
 			<legend>Connection</legend>
@@ -19,11 +16,7 @@
 			<input type="text" id="url" value="wss://echo.websocket.org/" placeholder="ws/wss url">
 			<label>Protocol:</label>
 			<input type="text" id="protocol" value="" placeholder="ws sub-protocol(s)" title="Sub-Protocols (Comma Separated)">
-			<input type="submit" value="OPEN" title="Open Connection (Ctrl + Alt + Enter)">
-			<input type="button" value="CLOSE">
-			<label>Timeout:</label>
-			<input type="text" id="timeout" value="" placeholder="30" title="Number in seconds">
-			<input type="button" value="RECONNECT">
+			<input type="submit" id="toggle-connection" value="CONNECT" title="Toggle Connection (Ctrl + Alt + Enter)">
 		</fieldset>
 	</form>
 	<!-- Terminal! -->
@@ -56,9 +49,6 @@
 		<a id="store-memory">Store Memory Slots</a>
 		<a id="clear-storage">Clear Storage All</a>
 		<a id="switch-auto-scroll">Switch Autoscroll <span>⚫</span></a>
-	</div>
-	<div id="branding">
-		<a href="https://github.com/mhgolkar" target="_blank"> ♥ Mor. H. Golkar </a>
 	</div>
 </body>
 </html>
